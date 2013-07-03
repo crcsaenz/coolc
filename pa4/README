@@ -1,0 +1,198 @@
+README file for Programming Assignment 4  (C++ edition)
+=======================================================
+
+Your directory should now contain the following files:
+
+ Makefile	      -> [course dir]/assignments/PA4/Makefile
+ README
+ ast-lex.cc	      -> [course dir]/src/PA4/ast-lex.cc
+ ast-parse.cc	      -> [course dir]/src/PA4/ast-parse.cc
+ cgen-phase.cc	      -> [course dir]/src/PA4/cgen-phase.cc
+ cgen.cc
+ cgen.h
+ cgen_supp.cc
+ cool-tree.cc	      -> [course dir]/src/PA4/cool-tree.cc
+ cool-tree.handcode.h
+ dumptype.cc	      -> [course dir]/src/PA4/dumptype.cc
+ emit.h
+ example.cl
+ handle_flags.cc      -> [course dir]/src/PA4/handle_flags.cc
+ mycoolc	      -> [course dir]/src/PA4/mycoolc*
+ stringtab.cc	      -> [course dir]/src/PA4/stringtab.cc
+ tree.cc	      -> [course dir]/src/PA4/tree.cc
+ utilities.cc	      -> [course dir]/src/PA4/utilities.cc
+ *.d
+
+The include (.h) files for this assignment can be found in 
+[course dir]/include/PA4
+
+	The Makefile contains targets for compiling and running your
+	program, as well as handing it in. DO NOT MODIFY.
+
+	The README contains this info. Part of the assignment is to
+	fill the README with the write-up for your project. You should
+	explain design decisions, explain why your code is correct,
+	and why your test cases are adequate. It is part of the
+	assignment to clearly and concisely explain things in text as
+	well as to comment your code. Just edit this file.
+
+	In example.cl you should write a correct Cool program which
+	tests as many aspects of the code generator as possible. It
+	should pass your code generator, and running spim on the
+	generated output should run the program correctly.
+
+	cgen.cc is the skeleton file for the code generator. This
+	skeleton is much larger than the ones for previous
+	assignments.  The skeleton provides three components of the
+	code generator:
+
+		- functions to build the inheritance graph; (we supply
+		  this in case you didn't get this working for PA4)
+
+		- functions to emit global data and constants;
+		 
+		- functions to emit spim instructions; (we supply
+		  these last two to save you some tedious coding)
+
+	You should work to understand this code, and it will help you
+        write the rest of the code generator.
+
+	cgen.h is the header file for the code generator. Feel free to
+	add anything you need.
+
+	cgen_supp.cc is general support code for the code generator.
+	You can add functions as you see fit, but do not modify the 3
+	functions:
+
+		o byte_mode
+		o ascii_mode
+		o emit_string_constant
+
+	emit.h defines a bunch of macros which should come in handy
+	when you actually want to emit code. Feel free to change
+	anything here to suit your needs.
+
+        cgen-phase.cc supplies the driver for the compiler. You should
+        not modify this code.  The script mycoolc can pass any of the
+        standard flags to the code generator; for this assignment, -c
+        (code generator debug) may be useful as it sets a global
+        variable cgen_debug to true (1).  If you want your code
+        generator to print debug information when the option is set,
+        write your debug code in the following format:
+
+	      if (cgen_debug)
+	      {
+		...
+	      }
+
+	symtab.h contains a symbol table implementation. You may
+        modify this file if you'd like.  To do so, remove the link and
+        copy `[course dir]/include/PA4/symtab.h' to your local
+        directory.
+
+	cool.h contains definitions that are used by almost all parts
+	of the compiler. DO NOT MODIFY.
+
+        tree.h contains the base class `tree_node' of the AST nodes.
+
+        cool-tree.cc, cool-tree.h, and cool-tree.handcode.h contain
+        the declarations and definitions of code generation AST nodes.
+        You may add fields as you wish, but you shouldn't modify any
+        of the methods already there except `code', which you may
+        modify or remove as you wish.  Note that cool-tree.handcode.h
+        is different from the same file in PA4---this file contains
+        function definitions needed for the cgen.cc skeleton.  You may
+        modify cool-tree.h or cool-tree.handcode.h, but don't modify
+        cool-tree.cc.  Place all method definitions in cgen.cc
+
+	stringtab.h contains functions to manipulate the string table.
+	DO NOT MODIFY.
+
+	dumptype.cc contains functions for printing out an abstract
+	syntax tree.  DO NOT MODIFY.
+
+        *.d dependency files, generated automatically by the makefile.
+
+Instructions
+------------
+
+	To compile your compiler and code generator type:
+
+	% make cgen
+
+	To test your compiler, type:
+
+	% ./mycoolc <file1.cl>
+
+	This command parses all the cool files given on the command
+	line, passes them through the semantic checker, and then hands
+	the program AST to your code generator.
+
+	To run your compiler on the file example.cl, type:
+
+	% make dotest
+
+	To run the produced code:
+
+	% spim -file file1.s  /* or the output filename you chose */
+	
+	To submit your work type:
+
+	% make submit
+
+ 	You may turn in the assignment as many times as you like.
+ 	However, only the last version will be retained for grading.
+
+	If you change architectures you must issue
+
+	% make clean
+
+	when you switch from one type of machine to the other.  If at
+	some point you get weird errors from the linker, you probably
+	forgot this step.
+
+	GOOD LUCK!
+
+---8<------8<------8<------8<---cut here---8<------8<------8<------8<---
+
+Write-up for PA4
+----------------
+
+user: crcsaenz
+
+ ================
+|Design Decisions|
+ ================
+	I stored the majority of the important information on each CgenNode object.  This includes the offsets for each attribute in the class, as well as the offsets for each method in the class' dispatch table.  Additionally, each CgenNode has its own class tag along with the class tag of its last child.  That way, for some class X, the range of tags [classTag, lastChildTag] covers all classes Y such that Y is a sub-type of X. For example:
+
+	Object
+	 /  \
+	A    B
+       / \    \
+      C   D    E
+
+By doing a depth-first search through the inheritance graph, we get the following tags:
+
+	Object	- 0		lastChild(Object) - 5
+	A	- 1		lastChild(A)	  - 3
+	C	- 2		lastChild(C)	  - 2
+	D	- 3		lastChild(D)	  - 3
+	B	- 4		lastChild(B)	  - 5
+	E	- 5		lastChild(E)	  - 5
+
+This is very handy for case statements.  Now we know if some type is a child of another type simply by checking that the child's tag is within the parent's range of tags.  Clearly, Object spans the whole range of tags [0, 5] since every class shares Object as a parent.
+
+	Aside from the class tag set-up for case statements, there weren't any other major design decisions.  I saw lots of questions about pre-allocating space for temporary variables, and decided against attempting it.
+
+ ===============
+|Testing process|
+ ===============
+	At each stage of development, I made a simple test file to ensure that the current implementation was doing what I expected - each test file building off of the previous one.  I made HEAVY use of cgen_debug early on, and not so much later.  Particularly, it was very useful when doing the preliminary global table stuff (class name tables, dispatch tables, etc).
+	I then used the bag of example COOL files that I used for previous assignments to test that each mechanic was functioning properly (arithmetic, conditionals, etc).
+
+ ========
+|Failures|
+ ========
+	I didn't set up formal parameters properly to handle scoping of variables.  I tried to do a very simple method where parameters are pushed on to a stack (global std::vector variable), then popped off when out of scope.  This would allow for a simple search for the variable with closest scope by iterating through the vector from back to front.  This didn't work out, and I'm guessing I was pushing the parameters at the wrong point, or interpreting their offsets improperly once found.
+	Didn't finish typecase::code() function :(
+
